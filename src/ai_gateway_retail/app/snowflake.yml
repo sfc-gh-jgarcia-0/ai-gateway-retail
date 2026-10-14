@@ -1,0 +1,34 @@
+definition_version: 2
+entities:
+  trace_analyzer:
+    type: streamlit
+    identifier:
+      name: AI_GATEWAY_RETAIL_TRACE_ANALYZER
+      database: CORTEX_GATEWAY_RETAIL_LAB
+      schema: PUBLIC
+    query_warehouse: GATEWAY_RETAIL_WH
+    runtime_name: SYSTEM$ST_CONTAINER_RUNTIME_PY3_11
+    compute_pool: SYSTEM_COMPUTE_POOL_CPU
+    external_access_integrations:
+      - GATEWAY_RETAIL_APP_EAI
+    # Gateway auth defaults to the container session token (served, not traced in testing).
+    # A PAT from the container is rejected by account network policies: the gateway
+    # sees no client IP for container calls, so no IP allowlist can admit them.
+    # secrets:
+    #   gateway_pat: CORTEX_GATEWAY_RETAIL_LAB.PUBLIC.GATEWAY_PAT_SECRET
+    main_file: streamlit_app.py
+    artifacts:
+      - streamlit_app.py
+      - gateway_client.py
+      - trace_queries.py
+      - optimize_config.py
+      - pyproject.toml
+      - .streamlit/config.toml
+      - app_pages/overview.py
+      - app_pages/model_performance.py
+      - app_pages/user_deep_dive.py
+      - app_pages/trace_explorer.py
+      - app_pages/advisor.py
+      - app_pages/experiments.py
+      - app_pages/compare.py
+      - app_pages/cost_governance.py

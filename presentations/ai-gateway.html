@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI on Snowflake, Governed End to End</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    :root {
+      --bg: #0F1B2D;
+      --sidebar-bg: #1B2A4A;
+      --primary: #29B5E8;
+      --accent: #7C3AED;
+      --text: #E2E8F0;
+      --text-muted: #94A3B8;
+      --card-bg: #162236;
+      --border: #2D4A6F;
+      --green: #10B981;
+      --orange: #F59E0B;
+      --red: #EF4444;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    .progress-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      z-index: 1000;
+      transition: width 0.1s;
+    }
+
+    .sidebar {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 260px;
+      height: 100vh;
+      background: var(--sidebar-bg);
+      padding: 2rem 1.5rem;
+      overflow-y: auto;
+      border-right: 1px solid var(--border);
+      z-index: 100;
+    }
+
+    .sidebar h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 1.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .sidebar a {
+      display: block;
+      color: var(--text-muted);
+      text-decoration: none;
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      margin-bottom: 0.25rem;
+      transition: all 0.2s;
+    }
+
+    .sidebar a:hover,
+    .sidebar a.active {
+      color: var(--text);
+      background: rgba(41, 181, 232, 0.1);
+    }
+
+    .sidebar a.active {
+      border-left: 3px solid var(--primary);
+      padding-left: calc(0.75rem - 3px);
+    }
+
+    .main {
+      margin-left: 260px;
+      padding: 0;
+    }
+
+    .slide {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 4rem 3rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .slide h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .slide h2 {
+      font-size: 1.75rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 1.5rem;
+    }
+
+    .slide h3 {
+      font-size: 1.25rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+
+    .slide p {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      max-width: 700px;
+      text-align: center;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.5rem;
+      width: 100%;
+      margin: 2rem 0;
+    }
+
+    .stat-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: center;
+    }
+
+    .stat-card .value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .stat-card .label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      width: 100%;
+      margin: 2rem 0;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+    }
+
+    .card h4 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.75rem;
+    }
+
+    .card p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      text-align: left;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 2rem 0;
+      font-size: 0.9rem;
+    }
+
+    th {
+      background: var(--card-bg);
+      color: var(--primary);
+      font-weight: 600;
+      padding: 0.75rem 1rem;
+      text-align: left;
+      border-bottom: 2px solid var(--border);
+    }
+
+    td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    tr:hover td {
+      background: rgba(41, 181, 232, 0.05);
+    }
+
+    .highlight-box {
+      background: rgba(41, 181, 232, 0.1);
+      border: 1px solid var(--primary);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+      width: 100%;
+    }
+
+    .context-box {
+      background: rgba(124, 58, 237, 0.1);
+      border: 1px solid var(--accent);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+      width: 100%;
+    }
+
+    .warning-box {
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid var(--orange);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+      width: 100%;
+    }
+
+    .badge-green { background: rgba(16, 185, 129, 0.15); color: var(--green); padding: 0.25rem 0.75rem; border-radius: 99px; font-size: 0.8rem; font-weight: 500; display: inline-block; }
+    .badge-orange { background: rgba(245, 158, 11, 0.15); color: var(--orange); padding: 0.25rem 0.75rem; border-radius: 99px; font-size: 0.8rem; font-weight: 500; display: inline-block; }
+    .badge-red { background: rgba(239, 68, 68, 0.15); color: var(--red); padding: 0.25rem 0.75rem; border-radius: 99px; font-size: 0.8rem; font-weight: 500; display: inline-block; }
+    .badge-blue { background: rgba(41, 181, 232, 0.15); color: var(--primary); padding: 0.25rem 0.75rem; border-radius: 99px; font-size: 0.8rem; font-weight: 500; display: inline-block; }
+    .badge-purple { background: rgba(124, 58, 237, 0.15); color: var(--accent); padding: 0.25rem 0.75rem; border-radius: 99px; font-size: 0.8rem; font-weight: 500; display: inline-block; }
+
+    .slide ul {
+      list-style: none;
+      width: 100%;
+      max-width: 700px;
+    }
+
+    .slide ul li {
+      padding: 0.75rem 0;
+      padding-left: 1.5rem;
+      position: relative;
+      color: var(--text);
+      font-size: 1.05rem;
+    }
+
+    .slide ul li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--primary);
+    }
+
+    code {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.2rem 0.5rem;
+      font-size: 0.85rem;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      color: var(--primary);
+    }
+
+    pre {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      overflow-x: auto;
+      width: 100%;
+      margin: 1.5rem 0;
+      font-size: 0.85rem;
+      line-height: 1.7;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      color: var(--text);
+    }
+
+    pre .keyword { color: var(--accent); font-weight: 500; }
+    pre .string { color: var(--green); }
+    pre .comment { color: var(--text-muted); font-style: italic; }
+    pre .function { color: var(--primary); }
+
+    .flow-diagram {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin: 2rem 0;
+      flex-wrap: wrap;
+      width: 100%;
+    }
+
+    .flow-step {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem 1.5rem;
+      text-align: center;
+      min-width: 140px;
+    }
+
+    .flow-step.active {
+      border-color: var(--primary);
+      box-shadow: 0 0 20px rgba(41, 181, 232, 0.2);
+    }
+
+    .flow-step .step-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .flow-step .step-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-top: 0.25rem;
+    }
+
+    .flow-arrow {
+      color: var(--primary);
+      font-size: 1.5rem;
+      font-weight: 300;
+    }
+
+    /* Layered architecture diagram: vertical levels of nodes joined by arrows.
+       Use for system architecture (who talks to whom); use .flow-diagram for linear pipelines. */
+    .arch-diagram {
+      width: 100%;
+      max-width: 800px;
+      margin: 2rem auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .arch-diagram .level {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .arch-diagram .node {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.85rem 1.25rem;
+      text-align: center;
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+
+    .arch-diagram .node-primary {
+      border-color: var(--primary);
+      box-shadow: 0 0 12px rgba(41, 181, 232, 0.2);
+    }
+
+    .arch-diagram .node-accent {
+      border-color: var(--accent);
+    }
+
+    .arch-diagram .arrow {
+      color: var(--text-muted);
+      font-size: 1.2rem;
+      margin: 0.5rem 0;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      width: 100%;
+      margin: 2rem 0;
+    }
+
+    .anim-fade {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+
+    .anim-fade.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 900px) {
+      .sidebar { display: none; }
+      .main { margin-left: 0; }
+      .stat-grid { grid-template-columns: repeat(2, 1fr); }
+      .slide { padding: 2rem 1.5rem; }
+      .two-col { grid-template-columns: 1fr; }
+    }
+
+    .github-link {
+      position: fixed;
+      top: 1rem;
+      right: 1.5rem;
+      z-index: 1000;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.8rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.4rem 0.75rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      transition: all 0.2s;
+    }
+    .github-link:hover {
+      color: var(--text);
+      border-color: var(--primary);
+    }
+    .github-link svg {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
+  </style>
+</head>
+<body>
+  <a href="https://github.com/sfc-gh-snuggehalli/field-demo-enablement/tree/main/ai-gateway" class="github-link" target="_blank">
+    <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+    GitHub
+  </a>
+  <div class="progress-bar"></div>
+  <nav class="sidebar">
+    <h2>AI on Snowflake</h2>
+    <!-- NAV_LINKS_START -->
+    <a href="#hero">Overview</a>
+    <a href="#act1">Part 1: AI in Snowflake</a>
+    <a href="#use-case">Use Case &amp; Data Model</a>
+    <a href="#stack">The Snowflake AI Stack</a>
+    <a href="#semantic">Semantic Views</a>
+    <a href="#ml">ML: Churn Model</a>
+    <a href="#agent-architecture">Cortex Agents</a>
+    <a href="#actions">Agents That Take Action</a>
+    <a href="#act2">Part 2: Control Plane</a>
+    <a href="#problem">Why a Control Plane</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#mcp">Publishing via MCP</a>
+    <a href="#what-is">What is Cortex AI Gateway?</a>
+    <a href="#inference">One Endpoint, Two APIs</a>
+    <a href="#agent">LangChain Agent in Action</a>
+    <a href="#observability">Every Call is Traced</a>
+    <a href="#optimization-loop">Telemetry to a Better Agent</a>
+    <a href="#experiments">Before / After</a>
+    <a href="#governance">Governing Spend</a>
+    <a href="#admin">Admin Controls</a>
+    <a href="#live">Live Demo</a>
+    <a href="#benefits">When to Use What</a>
+    <a href="#closing">Next Steps</a>
+    <!-- NAV_LINKS_END -->
+  </nav>
+
+  <main class="main">
+
+    <!-- SLIDES_START -->
+    <section class="slide" id="hero">
+      <h1>AI on Snowflake, Governed End to End: From Cortex Agents to a Central AI Control Plane</h1>
+      <p>Build governed AI where the retail data lives, then make Snowflake the single control point for every model call and tool call, including agents that run outside Snowflake.</p>
+      <div class="two-col anim-fade" style="margin-top: 2rem;">
+        <div class="card" style="border-color: var(--primary)"><h4>Part 1: AI capabilities in Snowflake</h4><p>Semantic views, an ML churn model in the Model Registry, and a Cortex Agent that answers and acts over sales, customer and campaign data.</p></div>
+        <div class="card" style="border-color: var(--accent)"><h4>Part 2: Snowflake as the control plane</h4><p>Publish that agent over MCP, route external LLM calls through Cortex AI Gateway, and trace, optimize and cap every request.</p></div>
+      </div>
+    </section>
+
+    <section class="slide" id="act1">
+      <span class="badge-blue">Part 1</span>
+      <h1 style="margin-top:1rem;">AI Capabilities in Snowflake</h1>
+      <p>Everything an agent needs, built next to the data and governed by the same RBAC: business semantics, ML, LLM functions, agents and actions.</p>
+    </section>
+
+    <section class="slide" id="use-case">
+      <h2>The Use Case: A Retail Analytics Agent</h2>
+      <h3>An athletic apparel brand wants merchandising, marketing and CX teams to ask questions in plain language and get governed, numeric answers</h3>
+      <div class="card-grid anim-fade">
+        <div class="card" style="border-color: var(--primary)"><h4>Goal</h4><p>Answer "which channels drive margin?", "which campaigns pay back?" and "which segments will churn?" from one agent, using certified metrics and a real churn model, then act on the answer.</p></div>
+        <div class="card" style="border-color: var(--accent)"><h4>Who uses it</h4><p>Business users in Snowflake Intelligence, and external agents (LangChain, coding agents) over MCP, all under their own roles.</p></div>
+      </div>
+      <table class="anim-fade">
+        <thead><tr><th>Domain</th><th>Tables (rows)</th><th>Semantic view</th></tr></thead>
+        <tbody>
+          <tr><td>Sales &amp; KPIs</td><td><code>FACT_DAILY_SALES</code> (47k), <code>FACT_DAILY_KPI</code> (4.5k), <code>DIM_PRODUCT</code> (500), <code>DIM_STORE</code> (25)</td><td><span class="badge-purple">CONVERSATIONAL_BI_SV</span></td></tr>
+          <tr><td>Customers &amp; campaigns</td><td><code>DIM_CUSTOMER</code> (5k), <code>FACT_CUSTOMER_INTERACTIONS</code> (20k), <code>DIM_MARKETING_CAMPAIGN</code> (40), <code>FACT_CAMPAIGN_PERFORMANCE</code> (1.2k)</td><td><span class="badge-blue">CUSTOMER_INTERACTIONS_SV</span></td></tr>
+          <tr><td>ML</td><td><code>ML_CUSTOMER_FEATURES</code> (5k) &rarr; churn model &rarr; <code>CHURN_PREDICTIONS</code> (5k)</td><td><span class="badge-blue">CUSTOMER_INTERACTIONS_SV</span></td></tr>
+        </tbody>
+      </table>
+      <div class="context-box anim-fade"><strong>Star schema, October 2024 to September 2025:</strong> facts join to product, store and customer dimensions on their keys. Each semantic view covers one domain, and the agent picks the view (via its Analyst tool) that fits the question, or uses both.</div>
+    </section>
+
+    <section class="slide" id="stack">
+      <h2>The Snowflake AI Stack</h2>
+      <h3>Each layer builds on the one below it, and all of it runs under your roles and grants</h3>
+      <div class="arch-diagram anim-fade">
+        <div class="level">
+          <div class="node">Snowflake Intelligence</div>
+          <div class="node">Agent REST API</div>
+          <div class="node node-accent">Managed MCP server</div>
+        </div>
+        <div class="arrow">&uarr; consumed by</div>
+        <div class="level"><div class="node node-primary"><strong>Cortex Agents</strong><br><small>orchestration, planning, tool use, custom tools (procedures)</small></div></div>
+        <div class="arrow">&uarr; tools</div>
+        <div class="level">
+          <div class="node">Cortex Analyst<br><small>text-to-SQL on semantic views</small></div>
+          <div class="node">Cortex Search<br><small>retrieval over unstructured text</small></div>
+          <div class="node">AI Functions<br><small>AI_COMPLETE, AI_CLASSIFY, ...</small></div>
+        </div>
+        <div class="arrow">&uarr; grounded in</div>
+        <div class="level">
+          <div class="node">Semantic views<br><small>business metrics + joins</small></div>
+          <div class="node">ML: Model Registry<br><small>train, register, batch-score</small></div>
+        </div>
+        <div class="arrow">&uarr;</div>
+        <div class="level"><div class="node">Governed data: sales, products, stores, customers, campaigns</div></div>
+      </div>
+      <div class="context-box anim-fade"><strong>In this demo:</strong> two semantic views, an XGBoost churn model, and one Cortex Agent with two Analyst tools. AI_COMPLETE is also the quality judge in Part 2. Cortex Search fits the same pattern for documents but isn't used here.</div>
+    </section>
+
+    <section class="slide" id="semantic">
+      <h2>Semantic Views: The Business Layer for AI</h2>
+      <h3>Define tables, joins, metrics and synonyms once; every agent and BI tool reuses them</h3>
+<pre class="anim-fade"><span class="keyword">CREATE SEMANTIC VIEW</span> CUSTOMER_INTERACTIONS_SV
+  <span class="keyword">TABLES</span> (
+    customers   <span class="keyword">AS</span> DIM_CUSTOMER <span class="keyword">PRIMARY KEY</span> (CUSTOMER_ID),
+    interactions <span class="keyword">AS</span> FACT_CUSTOMER_INTERACTIONS ...,
+    churn_preds <span class="keyword">AS</span> CHURN_PREDICTIONS          <span class="comment">-- scores from the registered model</span>
+      <span class="keyword">COMMENT</span> = <span class="string">'Churn scores from CHURN_PREDICTION_MODEL'</span> ...)
+  <span class="keyword">RELATIONSHIPS</span> (interaction_to_customer <span class="keyword">AS</span> interactions(CUSTOMER_ID) <span class="keyword">REFERENCES</span> customers, ...)
+  <span class="keyword">METRICS</span> (...)                                <span class="comment">-- e.g. avg model churn score, predicted churners</span></pre>
+      <div class="two-col anim-fade">
+        <div class="card" style="border-color: var(--primary)"><h4>CUSTOMER_INTERACTIONS_SV</h4><p>Customer behaviour, segments, campaigns, CLV and churn scores.</p></div>
+        <div class="card" style="border-color: var(--accent)"><h4>CONVERSATIONAL_BI_SV</h4><p>Revenue, orders, margins, stores, marketing efficiency and executive KPIs.</p></div>
+      </div>
+      <div class="highlight-box anim-fade"><strong>Why it matters for governance:</strong> Cortex Analyst only writes SQL against what the semantic view exposes, and the SQL runs under the caller's role. The semantic view is the boundary the agent can't step outside.</div>
+    </section>
+
+    <section class="slide" id="ml">
+      <h2>ML in the Same Platform: Churn Model to Agent Answer</h2>
+      <div class="flow-diagram anim-fade">
+        <div class="flow-step active"><div class="step-label">1. Train</div><div class="step-title">XGBoost on ML_CUSTOMER_FEATURES</div></div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-step"><div class="step-label">2. Register</div><div class="step-title">Model Registry: CHURN_PREDICTION_MODEL/V1</div></div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-step"><div class="step-label">3. Score</div><div class="step-title">Batch inference in the warehouse</div></div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-step"><div class="step-label">4. Monitor</div><div class="step-title">CHURN_MODEL_MONITOR</div></div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-step active"><div class="step-label">5. Serve</div><div class="step-title">CHURN_PREDICTIONS in the semantic view</div></div>
+      </div>
+<pre class="anim-fade"><span class="keyword">from</span> snowflake.ml.registry <span class="keyword">import</span> Registry
+reg = <span class="function">Registry</span>(session=session, database_name=DATABASE, schema_name=SCHEMA)
+mv  = reg.<span class="function">log_model</span>(model, model_name=<span class="string">"CHURN_PREDICTION_MODEL"</span>, version_name=<span class="string">"V1"</span>, ...)
+mv.<span class="function">run</span>(session.table(<span class="string">"CHURN_FEATURES_V"</span>), function_name=<span class="string">"predict_proba"</span>)   <span class="comment"># scored where the data lives</span></pre>
+      <div class="context-box anim-fade"><strong>The payoff:</strong> a business user asks "which segments will churn?" and the agent answers from model scores, not a hand-written rule, with no model endpoint or feature export outside Snowflake.</div>
+    </section>
+
+    <section class="slide" id="agent-architecture">
+      <h2>Cortex Agents: Orchestration Over Governed Tools</h2>
+      <h3>RETAIL_ANALYTICS_AGENT: instructions route each question to the right tool</h3>
+      <div class="arch-diagram anim-fade">
+        <div class="level">
+          <div class="node node-primary"><strong>Cortex Agent: orchestration (auto model)</strong><br><small>instructions route each question to a tool, plan multi-step, write the answer</small></div>
+        </div>
+        <div class="arrow">&darr;</div>
+        <div class="level">
+          <div class="node">customer_interactions_analyst<br><small>CUSTOMER_INTERACTIONS_SV + CHURN_PREDICTIONS</small></div>
+          <div class="node">business_kpi_analyst<br><small>CONVERSATIONAL_BI_SV</small></div>
+          <div class="node">data_to_chart<br><small>visualizations</small></div>
+        </div>
+        <div class="arrow">&darr;</div>
+        <div class="level">
+          <div class="node">GATEWAY_RETAIL_WH runs the generated SQL under RBAC</div>
+        </div>
+      </div>
+      <div class="two-col anim-fade">
+        <div class="card"><h4>The agent is the contract</h4><p>Tools, tool descriptions and orchestration instructions live in one <code>CREATE AGENT</code> spec. Add or change a tool there and every front end picks it up; no client code changes.</p></div>
+        <div class="card"><h4>Many front ends, one agent</h4><p>The same agent serves Snowflake Intelligence, the Agent REST API, and (Part 2) external clients over MCP. Built-in agent monitoring records each run.</p></div>
+      </div>
+      
+    </section>
+
+    <section class="slide" id="actions">
+      <h2>Beyond Answers: Agents That Take Action</h2>
+      <h3>Actions are stored procedures exposed as tools, governed the same way as reads</h3>
+      <div class="flow-diagram anim-fade">
+        <div class="flow-step active"><div class="step-label">1. Find</div><div class="step-title">Analyst: high churn-risk Gold members</div></div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-step"><div class="step-label">2. Propose</div><div class="step-title">Agent drafts offer + audience</div></div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-step"><div class="step-label">3. Act</div><div class="step-title">CREATE_RETENTION_CAMPAIGN proc</div></div>
+        <div class="flow-arrow">&rarr;</div>
+        <div class="flow-step active"><div class="step-label">4. Notify</div><div class="step-title">Email / Slack / ticket to owner</div></div>
+      </div>
+<pre class="anim-fade"><span class="comment">-- Illustrative: not deployed by lab/setup.sql</span>
+<span class="keyword">CREATE PROCEDURE</span> CREATE_RETENTION_CAMPAIGN(segment STRING, offer STRING, max_customers INT)
+  <span class="keyword">RETURNS</span> VARIANT <span class="keyword">LANGUAGE</span> SQL <span class="keyword">EXECUTE AS OWNER</span> ...  <span class="comment">-- validates inputs, INSERTs rows with STATUS='PENDING_APPROVAL'</span>
+
+<span class="comment"># Agent spec: same proc as a custom tool        # MCP spec: or expose it directly to MCP clients</span>
+- tool_spec: { type: generic,                    - name: create_retention_campaign
+    name: create_retention_campaign, ... }         type: <span class="string">"GENERIC"</span>
+tool_resources:                                    identifier: <span class="string">"...PUBLIC.CREATE_RETENTION_CAMPAIGN"</span>
+  create_retention_campaign:                       config: { type: <span class="string">"procedure"</span>, input_schema: ... }
+    type: procedure, identifier: ...</pre>
+      <div class="card-grid anim-fade">
+        <div class="card" style="border-color: var(--primary)"><h4>Write back in Snowflake</h4><p>Queue a retention offer, flag customers for outreach, open a case row, refresh a segment. The proc owns the write; the agent never gets raw DML.</p></div>
+        <div class="card" style="border-color: var(--accent)"><h4>Reach outside Snowflake</h4><p>The same proc can send email through a notification integration (<code>SYSTEM$SEND_EMAIL</code>) or call Slack, ServiceNow or a marketing platform through an external access integration.</p></div>
+        <div class="card" style="border-color: var(--green)"><h4>Keep a human in the loop</h4><p>Write to a <code>PENDING_APPROVAL</code> state and let a person or a downstream task release it. Return the campaign id so the agent can report what it did.</p></div>
+      </div>
+      <div class="warning-box anim-fade"><strong>Guardrails:</strong> grant <code>USAGE</code> on the procedure only to roles allowed to act; validate and cap every argument inside the proc (prompt injection can shape inputs); put write tools on the agent rather than adding <code>SYSTEM_EXECUTE_SQL</code>; log each action to an audit table from inside the proc.</div>
+    </section>
+
+    <section class="slide" id="act2">
+      <span class="badge-purple">Part 2</span>
+      <h1 style="margin-top:1rem;">Snowflake as the Central AI Control Plane</h1>
+      <p>Not every agent will run inside Snowflake. Teams build in LangChain, coding agents and vendor copilots. The goal is one place that governs the data those agents touch and the models they call.</p>
+      <div class="two-col anim-fade" style="margin-top: 2rem;">
+        <div class="card" style="border-color: var(--accent)"><h4>Tools: MCP server</h4><p>Publish the governed Cortex Agent to any MCP client. Data access stays behind semantic views and RBAC.</p></div>
+        <div class="card" style="border-color: var(--primary)"><h4>Models: Cortex AI Gateway</h4><p>One endpoint for every LLM call, with traces, cost attribution, model allowlists and per-user quotas.</p></div>
+      </div>
+    </section>
+
+    <section class="slide" id="problem">
+      <h2>Why External Agents Need a Control Plane</h2>
+      <div class="card-grid anim-fade">
+        <div class="card"><h4>Sprawl of keys and endpoints</h4><p>Every team wires its own provider keys into agents, notebooks and apps. Nobody can say which models are in use or who is calling them.</p></div>
+        <div class="card"><h4>No visibility into agent behaviour</h4><p>A single agent turn fans out into several model calls and tool calls. Without traces, slow or failing turns are guesswork.</p></div>
+        <div class="card"><h4>Spend you can't attribute or cap</h4><p>Token-based billing scales with verbose prompts and runaway outputs. Finance needs per-user and per-team attribution and hard limits.</p></div>
+        <div class="card"><h4>Optimization without evidence</h4><p>Prompt and model choices are made by intuition. Teams need a repeatable way to prove a cheaper config keeps answer quality.</p></div>
+      </div>
+    </section>
+
+    <section class="slide" id="architecture">
+      <h2>The Control Plane Architecture</h2>
+      <h3>External agent, Snowflake-native tools, one governed inference path</h3>
+      <div class="arch-diagram anim-fade">
+        <div class="level">
+          <div class="node">LangChain agent (ChatOpenAI) + live_agent.py</div>
+          <div class="node">Trace Analyzer app (Streamlit in Snowflake)</div>
+        </div>
+        <div class="arrow">&darr;</div>
+        <div class="level">
+          <div class="node node-accent">Cortex AI Gateway SNOWFLAKE<br><small>model allowlist, logging, payload capture</small></div>
+          <div class="node node-accent">MCP server RETAIL_MCP<br><small>one tool: Cortex Agent (2 Analysts, churn model scores)</small></div>
+        </div>
+        <div class="arrow">&darr;</div>
+        <div class="level">
+          <div class="node node-primary"><strong>AGENT_TRACE_TABLE + AI_GATEWAY_USAGE_HISTORY &rarr; optimization loop</strong></div>
+        </div>
+      </div>
+      <div class="context-box anim-fade">
+        <strong>Pattern:</strong> Inference goes through the gateway; data access goes through MCP. Both authenticate as the same Snowflake user, so every token and every tool call is governed by RBAC and lands in telemetry you own.
+      </div>
+    </section>
+
+    <section class="slide" id="mcp">
+      <h2>Publishing the Agent to Any Client (MCP)</h2>
+  <h3>One governed tool: a Cortex Agent behind the MCP server</h3>
+<pre class="anim-fade"><span class="keyword">CREATE AGENT</span> RETAIL_ANALYTICS_AGENT ...        <span class="comment"># 2 Analyst tools: customer + churn, executive KPIs</span>
+
+<span class="keyword">CREATE MCP SERVER</span> RETAIL_MCP <span class="keyword">FROM SPECIFICATION</span> $$
+tools:
+  - name: retail_analytics_agent
+    type: <span class="string">"CORTEX_AGENT_RUN"</span>
+    identifier: <span class="string">"CORTEX_GATEWAY_RETAIL_LAB.PUBLIC.RETAIL_ANALYTICS_AGENT"</span>
+$$;</pre>
+  <div class="highlight-box anim-fade">No raw SQL tool: the client can't bypass the semantic views. Churn scores from the registered XGBoost model reach the client through the same tool. Clients connect over streamable HTTP at <code>/api/v2/databases/&lt;db&gt;/schemas/&lt;schema&gt;/mcp-servers/&lt;name&gt;</code> with the same PAT, and tools execute under the caller's role.</div>
+      <div class="context-box anim-fade"><strong>Two layers of orchestration:</strong> the external agent decides <em>whether</em> to ask Snowflake; the Cortex Agent decides <em>how</em> to answer. The gateway traces the first; Cortex Agent monitoring covers the second.</div>
+    </section>
+
+    <section class="slide" id="what-is">
+      <h2>What is Cortex AI Gateway?</h2>
+  <h3>A governed inference endpoint that Snowflake provisions for you</h3>
+  <div class="card-grid anim-fade">
+    <div class="card"><h4>Inference</h4><p>OpenAI Chat Completions and Anthropic Messages APIs. Any client that can override its base URL works: SDKs, LangChain, coding agents.</p></div>
+    <div class="card"><h4>Observability</h4><p>One OpenTelemetry span per request in <code>AGENT_TRACE_TABLE('SNOWFLAKE')</code>: model, timing, tokens, status, and optionally the full prompt and response.</p></div>
+    <div class="card"><h4>Cost management</h4><p>Credits per request in <code>AI_GATEWAY_USAGE_HISTORY</code>, attributed to the calling user. Budgets and per-user quotas apply to the AI GATEWAY domain.</p></div>
+    <div class="card"><h4>Access control</h4><p><code>USAGE</code> to send requests, <code>MONITOR</code> to read traces and usage. Model access still follows Cortex model RBAC.</p></div>
+  </div>
+  <div class="context-box anim-fade"><strong>Not the same as Cortex Inference:</strong> <code>/api/v2/cortex</code> accepts the same requests, but only traffic through <code>/api/v2/aigateways/SNOWFLAKE</code> gets the gateway's access control, traces and cost attribution.</div>
+    </section>
+
+    <section class="slide" id="inference">
+      <h2>One Endpoint, Two Standard APIs</h2>
+  <div class="two-col anim-fade">
+    <div class="card"><h4>/v1/chat/completions</h4><p>OpenAI-compatible. All non-Claude models (OpenAI GPT-5 family and others your account can reach).</p></div>
+    <div class="card"><h4>/v1/messages</h4><p>Anthropic-compatible. Claude models only. Use a Bearer token, not the SDK's default x-api-key header.</p></div>
+  </div>
+<pre class="anim-fade"><span class="keyword">from</span> langchain_openai <span class="keyword">import</span> ChatOpenAI
+
+llm = <span class="function">ChatOpenAI</span>(
+    model=<span class="string">"openai-gpt-5.4"</span>,
+    base_url=<span class="string">"https://&lt;account-host&gt;/api/v2/aigateways/SNOWFLAKE/v1"</span>,
+    api_key=PAT,                                   <span class="comment"># programmatic access token</span>
+    max_completion_tokens=<span class="string">4096</span>,                     <span class="comment"># GPT-5 family: not max_tokens</span>
+    default_headers={<span class="string">"traceparent"</span>: traceparent},   <span class="comment"># groups one agent turn</span>
+)</pre>
+  <div class="warning-box anim-fade"><strong>Gotchas seen in the lab:</strong> hostnames must use hyphens, not underscores; GPT-5 models reject <code>max_tokens</code>; Claude sent to <code>/chat/completions</code> returns 400.</div>
+    </section>
+
+    <section class="slide" id="agent">
+      <h2>LangChain Agent in Action</h2>
+  <div class="flow-diagram anim-fade">
+    <div class="flow-step active"><div class="step-label">Question</div><div class="step-title">Which segments will churn?</div></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><div class="step-label">Gateway call 1</div><div class="step-title">Route to retail_analytics_agent</div></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><div class="step-label">MCP tool call</div><div class="step-title">Agent: Analyst SQL on model scores</div></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step active"><div class="step-label">Gateway call 2</div><div class="step-title">Grounded answer</div></div>
+  </div>
+  <div class="context-box anim-fade"><strong>One turn, one trace:</strong> the ReAct agent makes a gateway call before and after each tool call. Sending the same <code>traceparent</code> on each groups them under one <code>trace_id</code>, which is what makes the turn debuggable.</div>
+    </section>
+
+    <section class="slide" id="observability">
+      <h2>Every Call is Traced</h2>
+<pre class="anim-fade"><span class="keyword">SELECT</span> TRACE:<span class="string">"trace_id"</span>::STRING                                   <span class="keyword">AS</span> trace_id,
+       RECORD:<span class="string">"name"</span>::STRING                                       <span class="keyword">AS</span> span_name,
+       RECORD:<span class="string">"status"</span>:<span class="string">"code"</span>::STRING                             <span class="keyword">AS</span> status,
+       <span class="function">DATEDIFF</span>(<span class="string">'millisecond'</span>, START_TIMESTAMP, TIMESTAMP)        <span class="keyword">AS</span> duration_ms,
+       RECORD_ATTRIBUTES:<span class="string">"gen_ai.usage.output_tokens"</span>             <span class="keyword">AS</span> output_tokens,
+       RECORD_ATTRIBUTES:<span class="string">"gen_ai.input.messages"</span>                  <span class="keyword">AS</span> prompt   <span class="comment">-- payload capture</span>
+<span class="keyword">FROM TABLE</span>(<span class="function">AGENT_TRACE_TABLE</span>(<span class="string">'SNOWFLAKE'</span>))
+<span class="keyword">WHERE</span> TIMESTAMP &gt; <span class="function">DATEADD</span>(<span class="string">'hour'</span>, -<span class="string">1</span>, <span class="function">CURRENT_TIMESTAMP</span>());</pre>
+  <table class="anim-fade">
+    <thead><tr><th>Layer</th><th>Grouped by</th><th>Comes from</th></tr></thead>
+    <tbody>
+      <tr><td>Conversation</td><td><code>gen_ai.conversation.id</code></td><td><code>x-snowflake-ai-gateway-conversation-id</code> header</td></tr>
+      <tr><td>Trace (one agent turn)</td><td><code>trace_id</code></td><td>W3C <code>traceparent</code> header</td></tr>
+      <tr><td>Span (one inference call)</td><td><code>span_id</code></td><td>recorded by the gateway</td></tr>
+    </tbody>
+  </table>
+  <div class="warning-box anim-fade">Prompt and response content is recorded only when <code>logging.capture_payload.request_response: true</code>. Treat the trace table as sensitive once it is on.</div>
+    </section>
+
+    <section class="slide" id="optimization-loop">
+      <h2>From Telemetry to a Better Agent</h2>
+  <h3>The closed loop the Trace Analyzer app runs</h3>
+  <div class="flow-diagram anim-fade">
+    <div class="flow-step active"><div class="step-label">1. Observe</div><div class="step-title">Traces + usage by user, model, trace</div></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><div class="step-label">2. Diagnose</div><div class="step-title">Advisor: latency, errors, token bloat</div></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><div class="step-label">3. Experiment</div><div class="step-title">Replay eval set, baseline vs candidate</div></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><div class="step-label">4. Compare</div><div class="step-title">Quality, p50/p95, tokens, errors</div></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step active"><div class="step-label">5. Promote</div><div class="step-title">Client config + gateway allowlist + quota</div></div>
+  </div>
+  <div class="card-grid anim-fade">
+    <div class="card"><h4>Evidence, not intuition</h4><p>Every experiment call carries its own traceparent, so each result row in OPTIMIZATION_RESULTS links back to its gateway span.</p></div>
+    <div class="card"><h4>Quality gate</h4><p>An AI_COMPLETE judge scores each answer 0-1 against EVAL_PROMPTS.EXPECTED; a candidate is promoted only if it stays within 0.05 of baseline.</p></div>
+    <div class="card"><h4>Typical wins</h4><p>Cap max tokens, constrain verbosity in the system prompt, or move simple workloads to a smaller model in the same family.</p></div>
+  </div>
+    </section>
+
+    <section class="slide" id="experiments">
+      <h2>Before / After: Proving the Fix</h2>
+  <table class="anim-fade">
+    <thead><tr><th>Lever</th><th>Signal in telemetry</th><th>Candidate change</th><th>Measured by</th></tr></thead>
+    <tbody>
+      <tr><td>Token bloat</td><td>High avg <code>gen_ai.usage.output_tokens</code></td><td>Lower max tokens + concise system prompt</td><td>Avg output tokens, judge score</td></tr>
+      <tr><td>Latency</td><td>High span duration per user/model</td><td>Smaller model (e.g. gpt-5.4 &rarr; gpt-5.4-mini)</td><td>p50 / p95 latency</td></tr>
+      <tr><td>Errors</td><td><code>STATUS_CODE_ERROR</code>, HTTP 4xx</td><td>Route to an allowed model, fix API choice</td><td>Error rate</td></tr>
+      <tr><td>Cost</td><td>Credits in AI_GATEWAY_USAGE_HISTORY</td><td>Trim context, cheaper model</td><td>Credits per 1k requests (rates fitted from billed usage)</td></tr>
+    </tbody>
+  </table>
+  <div class="highlight-box anim-fade"><strong>Promote on cost, gated on quality:</strong> the candidate ships only if judge quality holds within 0.05 and credits per request drop. In our validation run: 0.98 vs 0.98 quality at 76% fewer credits per request. Promotion produces the new client settings, an <code>ALTER AI GATEWAY ... FROM SPECIFICATION</code> that pins the allowlist, and a per-user quota.</div>
+    </section>
+
+    <section class="slide" id="governance">
+      <h2>Governing Spend: Attribute, Cap, Enforce</h2>
+  <div class="card-grid anim-fade">
+    <div class="card" style="border-color: var(--primary)"><h4>Attribute</h4><p>Every gateway request lands in <code>AI_GATEWAY_USAGE_HISTORY</code> with its credits, model, tokens and calling user. A <code>COST_CENTER</code> tag on users turns that into chargeback by team.</p></div>
+    <div class="card" style="border-color: var(--accent)"><h4>Cap</h4><p>Budgets track team spend (scoped by the same tag). Per-user quotas set daily, weekly and monthly credit limits on the <code>AI GATEWAY</code> domain, with notifications on actual or projected spend.</p></div>
+    <div class="card" style="border-color: var(--green)"><h4>Enforce</h4><p>With block enforcement on, a user at the limit is denied by the platform: HTTP 403, "exceeded the usage quota limit", with the restore time. The block clears at the cycle reset, or 5-10 minutes after the limit is raised.</p></div>
+  </div>
+  <div class="warning-box anim-fade">Enforcement lands within minutes of the spend, not on each request, so a user can briefly overshoot; size limits with headroom. One limit applies to every user in a quota: use a tier tag and a second quota for heavier users.</div>
+    </section>
+
+    <section class="slide" id="admin">
+      <h2>Admin Controls</h2>
+<pre class="anim-fade"><span class="keyword">ALTER AI GATEWAY</span> SNOWFLAKE <span class="keyword">FROM SPECIFICATION</span> $$
+schema_version: 1
+models:
+  - name: <span class="string">'*'</span>                     <span class="comment"># or an explicit allowlist</span>
+logging:
+  enabled: true
+  enable_client_telemetry: true
+  capture_payload:
+    request_response: true
+$$;                              <span class="comment">-- replaces the whole spec</span>
+
+<span class="keyword">GRANT USAGE</span>   <span class="keyword">ON AI GATEWAY</span> SNOWFLAKE <span class="keyword">TO ROLE</span> app_team;      <span class="comment">-- send requests</span>
+<span class="keyword">GRANT MONITOR</span> <span class="keyword">ON AI GATEWAY</span> SNOWFLAKE <span class="keyword">TO ROLE</span> platform_ops;  <span class="comment">-- read traces/usage</span></pre>
+  <div class="context-box anim-fade">Spend controls (budgets, per-user quotas, block enforcement) are covered in <strong>Governing Spend</strong>.</div>
+  <div class="warning-box anim-fade">USAGE is granted to PUBLIC by default. Revoke it to restrict who can send traffic; revoking USAGE is also how a budget action can cut a team off.</div>
+    </section>
+
+    <section class="slide" id="live">
+      <h2>Live Demo: One Prompt, Four Views</h2>
+  <div class="card-grid anim-fade">
+    <div class="card" style="border-color: var(--primary)"><h4>1. Send it</h4><p><code>python lab/live_agent.py "..."</code> runs the LangChain + MCP agent from a laptop and prints its trace_id.</p></div>
+    <div class="card" style="border-color: var(--accent)"><h4>2. Snowsight</h4><p>AI &amp; ML &rarr; Cortex AI Gateway: find the same trace, its spans, tokens and captured messages.</p></div>
+    <div class="card" style="border-color: var(--green)"><h4>3. Trace Analyzer</h4><p>Trace explorer loads that trace_id from AGENT_TRACE_TABLE: span waterfall plus the captured system prompt, input and output.</p></div>
+    <div class="card" style="border-color: var(--primary)"><h4>4. Cost governance</h4><p>The same traffic as credits by cost center, a user over their daily quota, and the platform's block on their next request.</p></div>
+  </div>
+  <div class="context-box anim-fade"><strong>Presenter tip:</strong> run <code>live_agent.py --model not-a-real-model</code> once to show an error span land, then show it on the Overview error-rate chart.</div>
+    </section>
+
+    <section class="slide" id="benefits">
+      <h2>When to Use What</h2>
+  <div class="card-grid anim-fade">
+    <div class="card" style="border-color: var(--green)"><h4>AI Gateway</h4><ul><li>External agents, SDKs, coding agents</li><li>Need traces, attribution, quotas</li><li>Standard OpenAI / Anthropic clients</li></ul></div>
+    <div class="card" style="border-color: var(--primary)"><h4>MCP server</h4><ul><li>Give any agent governed Snowflake tools</li><li>Two Analysts and ML scores behind one Cortex Agent tool</li><li>No raw SQL tool to bypass the semantic view</li></ul></div>
+    <div class="card" style="border-color: var(--accent)"><h4>Cortex Agents</h4><ul><li>Snowflake-hosted orchestration</li><li>Snowflake Intelligence front end</li><li>Built-in agent monitoring</li></ul></div>
+  </div>
+    </section>
+
+    <section class="slide" id="closing">
+      <h2>Next Steps</h2>
+      <div class="card-grid anim-fade">
+        <div class="card"><h4>1. Turn on logging</h4><p>Set logging.enabled and capture_payload in the gateway spec, and grant MONITOR to the team that owns observability.</p></div>
+        <div class="card"><h4>2. Point one agent at the gateway</h4><p>Swap the base URL of an existing OpenAI or Anthropic SDK client and send a traceparent header per turn.</p></div>
+        <div class="card"><h4>3. Run the optimization loop</h4><p>Pick the top Advisor finding, replay an eval set with a candidate config, and promote it only if quality holds.</p></div>
+        <div class="card"><h4>4. Add guardrails</h4><p>Pin the model allowlist, then add a per-user quota with block enforcement and a shared-resource budget per team.</p></div>
+      </div>
+      <div class="highlight-box anim-fade" style="margin-top: 1.5rem;">
+        <strong>Govern the path, observe every call, and let the telemetry tell you which prompt and model to ship.</strong>
+      </div>
+    </section>
+
+    <!-- SLIDES_END -->
+
+  </main>
+
+  <script>
+    // Progress bar
+    window.addEventListener('scroll', () => {
+      const scrollTop = window.scrollY;
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const progress = (scrollTop / docHeight) * 100;
+      document.querySelector('.progress-bar').style.width = progress + '%';
+    });
+
+    // Scroll animations
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.anim-fade').forEach(el => observer.observe(el));
+
+    // Active nav tracking
+    const sections = document.querySelectorAll('.slide');
+    const navLinks = document.querySelectorAll('.sidebar a');
+
+    window.addEventListener('scroll', () => {
+      let current = '';
+      sections.forEach(section => {
+        const sectionTop = section.offsetTop - 200;
+        if (window.scrollY >= sectionTop) {
+          current = section.getAttribute('id');
+        }
+      });
+      navLinks.forEach(link => {
+        link.classList.remove('active');
+        if (link.getAttribute('href') === '#' + current) {
+          link.classList.add('active');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

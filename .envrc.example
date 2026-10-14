@@ -1,0 +1,7 @@
+export SNOWFLAKE_ACCOUNT=<org-account>
+export SNOWFLAKE_USER=<username>
+export SNOWFLAKE_PAT=<pat>
+# Or: export SNOWFLAKE_PAT_FILE=~/.snowflake/ai_gateway_retail.pat
+# For the Streamlit app:
+export SNOWFLAKE_DEFAULT_CONNECTION_NAME=<connection>
+export GATEWAY_HOST=<org-account>.snowflakecomputing.com
